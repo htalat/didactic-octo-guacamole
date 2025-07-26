@@ -1,0 +1,7 @@
+*.md
+*.mdc
+.build/
+.swiftpm/
+*.xcodeproj/
+*.xcworkspace/
+.DS_Store

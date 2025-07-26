@@ -1,5 +1,7 @@
-*.md
 *.mdc
+CLAUDE.md
+modern-swift.mdc
+swift-*.mdc
 .build/
 .swiftpm/
 *.xcodeproj/

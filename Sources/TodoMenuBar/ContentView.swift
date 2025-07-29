@@ -1,5 +1,7 @@
 import SwiftUI
 
+private let appVersion = "1.0.0"
+
 struct ContentView: View {
     @State private var todoStore = TodoStore()
     @State private var selectedTab: TodoStatus = .inProgress
@@ -26,9 +28,15 @@ struct ContentView: View {
     
     private var headerView: some View {
         HStack {
-            Text("Todo Manager")
-                .font(.headline)
-                .fontWeight(.semibold)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Todo Manager")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                
+                Text("v\(appVersion)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
             
             Spacer()
             

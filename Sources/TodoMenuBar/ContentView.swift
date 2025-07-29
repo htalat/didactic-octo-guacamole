@@ -1,7 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-private let appVersion = "1.0.0"
+private let appVersion = "1.1.0"
 
 struct ContentView: View {
     @State private var todoStore = TodoStore()

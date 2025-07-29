@@ -113,6 +113,22 @@ class TodoStore {
             self.currentlyDoing = todoData.currentlyDoing
         }
     }
+    
+    func exportData() -> Data? {
+        let exportData = TodoData(todos: todos, currentlyDoing: currentlyDoing)
+        return try? JSONEncoder().encode(exportData)
+    }
+    
+    func importData(from data: Data) -> Bool {
+        guard let todoData = try? JSONDecoder().decode(TodoData.self, from: data) else {
+            return false
+        }
+        
+        self.todos = todoData.todos
+        self.currentlyDoing = todoData.currentlyDoing
+        saveTodos()
+        return true
+    }
 }
 
 protocol TodoStorage {

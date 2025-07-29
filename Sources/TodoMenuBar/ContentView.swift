@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 private let appVersion = "1.0.0"
 
@@ -11,6 +12,9 @@ struct ContentView: View {
     @State private var newTodoCategory = "general"
     @State private var showingAddTodo = false
     @State private var selectedCategory: String? = nil
+    @State private var showingImportAlert = false
+    @State private var showingExportAlert = false
+    @State private var importSuccessful = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -24,6 +28,16 @@ struct ContentView: View {
         }
         .frame(width: 400, height: 600)
         .background(Color(.windowBackgroundColor))
+        .alert("Export Successful", isPresented: $showingExportAlert) {
+            Button("OK") { }
+        } message: {
+            Text("Your todo data has been exported successfully.")
+        }
+        .alert("Import Result", isPresented: $showingImportAlert) {
+            Button("OK") { }
+        } message: {
+            Text(importSuccessful ? "Your todo data has been imported successfully." : "Failed to import data. Please check the file format.")
+        }
     }
     
     private var headerView: some View {
@@ -40,12 +54,25 @@ struct ContentView: View {
             
             Spacer()
             
-            Button("Quit") {
-                NSApplication.shared.terminate(nil)
+            Menu {
+                Button("Export Data") {
+                    exportData()
+                }
+                
+                Button("Import Data") {
+                    importData()
+                }
+                
+                Divider()
+                
+                Button("Quit") {
+                    NSApplication.shared.terminate(nil)
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .foregroundColor(.secondary)
             }
             .buttonStyle(.plain)
-            .font(.caption)
-            .foregroundColor(.secondary)
         }
         .padding()
         .background(Color(.controlBackgroundColor))
@@ -338,6 +365,47 @@ struct ContentView: View {
         newTodoTitle = ""
         newTodoDescription = ""
         newTodoCategory = "general"
+    }
+    
+    private func exportData() {
+        guard let data = todoStore.exportData() else { return }
+        
+        let savePanel = NSSavePanel()
+        savePanel.title = "Export Todo Data"
+        savePanel.nameFieldStringValue = "todos.json"
+        savePanel.allowedContentTypes = [.json]
+        
+        if savePanel.runModal() == .OK {
+            guard let url = savePanel.url else { return }
+            
+            do {
+                try data.write(to: url)
+                showingExportAlert = true
+            } catch {
+                print("Failed to export data: \(error)")
+            }
+        }
+    }
+    
+    private func importData() {
+        let openPanel = NSOpenPanel()
+        openPanel.title = "Import Todo Data"
+        openPanel.allowedContentTypes = [.json]
+        openPanel.allowsMultipleSelection = false
+        
+        if openPanel.runModal() == .OK {
+            guard let url = openPanel.url else { return }
+            
+            do {
+                let data = try Data(contentsOf: url)
+                importSuccessful = todoStore.importData(from: data)
+                showingImportAlert = true
+            } catch {
+                importSuccessful = false
+                showingImportAlert = true
+                print("Failed to import data: \(error)")
+            }
+        }
     }
 }
 

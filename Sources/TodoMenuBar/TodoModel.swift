@@ -13,7 +13,7 @@ class TodoStore {
     }
     
     func addTodo(title: String, description: String = "", category: String = "General") {
-        let todo = TodoItem(title: title, description: description, category: category)
+        let todo = TodoItem(title: title, description: description, category: category.lowercased())
         todos.append(todo)
         saveTodos()
     }
@@ -35,7 +35,7 @@ class TodoStore {
                 todos[index].description = description.trimmingCharacters(in: .whitespacesAndNewlines)
             }
             if let category = newCategory {
-                todos[index].category = category.trimmingCharacters(in: .whitespacesAndNewlines)
+                todos[index].category = category.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             }
             todos[index].updatedAt = Date()
             saveTodos()
@@ -48,6 +48,22 @@ class TodoStore {
         }
         currentlyDoing = todo
         saveTodos()
+    }
+    
+    func completeCurrentlyDoing() {
+        if let current = currentlyDoing {
+            updateTodo(current, status: .completed)
+            currentlyDoing = nil
+            saveTodos()
+        }
+    }
+    
+    func archiveCurrentlyDoing() {
+        if let current = currentlyDoing {
+            updateTodo(current, status: .archived)
+            currentlyDoing = nil
+            saveTodos()
+        }
     }
     
     func deleteTodo(_ todo: TodoItem) {
@@ -155,7 +171,7 @@ struct TodoItem: Identifiable, Codable, Equatable {
         self.id = UUID()
         self.title = title
         self.description = description
-        self.category = category
+        self.category = category.lowercased()
         self.status = .inProgress
         self.createdAt = Date()
         self.updatedAt = Date()

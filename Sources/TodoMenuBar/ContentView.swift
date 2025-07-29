@@ -6,7 +6,7 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var newTodoTitle = ""
     @State private var newTodoDescription = ""
-    @State private var newTodoCategory = "General"
+    @State private var newTodoCategory = "general"
     @State private var showingAddTodo = false
     @State private var selectedCategory: String? = nil
     
@@ -61,6 +61,20 @@ struct ContentView: View {
                             .fontWeight(.medium)
                         
                         Spacer()
+                        
+                        Button("Complete") {
+                            todoStore.completeCurrentlyDoing()
+                        }
+                        .buttonStyle(.plain)
+                        .font(.caption)
+                        .foregroundColor(.green)
+                        
+                        Button("Archive") {
+                            todoStore.archiveCurrentlyDoing()
+                        }
+                        .buttonStyle(.plain)
+                        .font(.caption)
+                        .foregroundColor(.orange)
                         
                         Button("Clear") {
                             todoStore.setCurrentlyDoing(nil)
@@ -130,6 +144,7 @@ struct ContentView: View {
                     TodoRowView(
                         todo: todo,
                         isCurrentlyDoing: todoStore.currentlyDoing?.id == todo.id,
+                        categories: todoStore.categories,
                         onStatusChange: { status in
                             todoStore.updateTodo(todo, status: status)
                         },
@@ -193,12 +208,48 @@ struct ContentView: View {
                     TextField("Description (optional)", text: $newTodoDescription)
                         .textFieldStyle(.roundedBorder)
                     
-                    HStack {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("Category:")
                             .font(.caption)
                         
-                        TextField("Category", text: $newTodoCategory)
-                            .textFieldStyle(.roundedBorder)
+                        HStack {
+                            TextField("Category", text: $newTodoCategory)
+                                .textFieldStyle(.roundedBorder)
+                            
+                            if !todoStore.categories.isEmpty {
+                                Menu {
+                                    ForEach(todoStore.categories, id: \.self) { category in
+                                        Button(category) {
+                                            newTodoCategory = category
+                                        }
+                                    }
+                                } label: {
+                                    Image(systemName: "chevron.down.circle")
+                                        .foregroundColor(.blue)
+                                }
+                                .buttonStyle(.plain)
+                                .help("Choose from existing categories")
+                            }
+                        }
+                        
+                        if !todoStore.categories.isEmpty {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 6) {
+                                    ForEach(todoStore.categories.prefix(5), id: \.self) { category in
+                                        Button(category) {
+                                            newTodoCategory = category
+                                        }
+                                        .buttonStyle(.plain)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color(.controlBackgroundColor))
+                                        .cornerRadius(12)
+                                        .font(.caption2)
+                                        .foregroundColor(.blue)
+                                    }
+                                }
+                            }
+                        }
                     }
                     
                     HStack {
@@ -268,7 +319,7 @@ struct ContentView: View {
         todoStore.addTodo(
             title: title,
             description: newTodoDescription.trimmingCharacters(in: .whitespacesAndNewlines),
-            category: newTodoCategory.trimmingCharacters(in: .whitespacesAndNewlines)
+            category: newTodoCategory.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         )
         
         showingAddTodo = false
@@ -278,13 +329,14 @@ struct ContentView: View {
     private func resetNewTodoFields() {
         newTodoTitle = ""
         newTodoDescription = ""
-        newTodoCategory = "General"
+        newTodoCategory = "general"
     }
 }
 
 struct TodoRowView: View {
     let todo: TodoItem
     let isCurrentlyDoing: Bool
+    let categories: [String]
     let onStatusChange: (TodoStatus) -> Void
     let onSetCurrentlyDoing: () -> Void
     let onEdit: (String, String, String) -> Void
@@ -311,9 +363,26 @@ struct TodoRowView: View {
                             .textFieldStyle(.roundedBorder)
                             .font(.caption)
                         
-                        TextField("Category", text: $editingCategory)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.caption)
+                        HStack {
+                            TextField("Category", text: $editingCategory)
+                                .textFieldStyle(.roundedBorder)
+                                .font(.caption)
+                            
+                            if !categories.isEmpty {
+                                Menu {
+                                    ForEach(categories, id: \.self) { category in
+                                        Button(category) {
+                                            editingCategory = category
+                                        }
+                                    }
+                                } label: {
+                                    Image(systemName: "chevron.down.circle")
+                                        .foregroundColor(.blue)
+                                        .font(.caption)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
                     }
                     .onAppear {
                         editingTitle = todo.title
@@ -484,7 +553,7 @@ struct TodoRowView: View {
             onEdit(
                 trimmedTitle,
                 editingDescription.trimmingCharacters(in: .whitespacesAndNewlines),
-                editingCategory.trimmingCharacters(in: .whitespacesAndNewlines)
+                editingCategory.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             )
         }
         isEditing = false

@@ -1,7 +1,7 @@
 import SwiftUI
-import UniformTypeIdentifiers
+import AppKit
 
-private let appVersion = "1.1.0"
+private let appVersion = "1.2.0"
 
 struct ContentView: View {
     @State private var todoStore = TodoStore()
@@ -13,7 +13,7 @@ struct ContentView: View {
     @State private var showingAddTodo = false
     @State private var selectedCategory: String? = nil
     @State private var showingImportAlert = false
-    @State private var showingExportAlert = false
+    @State private var showingExportConfirmation = false
     @State private var importSuccessful = false
     
     var body: some View {
@@ -28,10 +28,10 @@ struct ContentView: View {
         }
         .frame(width: 400, height: 600)
         .background(Color(.windowBackgroundColor))
-        .alert("Export Successful", isPresented: $showingExportAlert) {
+        .alert("Copied to Clipboard", isPresented: $showingExportConfirmation) {
             Button("OK") { }
         } message: {
-            Text("Your todo data has been exported successfully.")
+            Text("Your todo data has been copied to the clipboard.")
         }
         .alert("Import Result", isPresented: $showingImportAlert) {
             Button("OK") { }
@@ -55,12 +55,12 @@ struct ContentView: View {
             Spacer()
             
             Menu {
-                Button("Export Data") {
-                    exportData()
+                Button("Copy Data") {
+                    copyDataToClipboard()
                 }
                 
-                Button("Import Data") {
-                    importData()
+                Button("Paste Data") {
+                    pasteDataFromClipboard()
                 }
                 
                 Divider()
@@ -367,45 +367,28 @@ struct ContentView: View {
         newTodoCategory = "general"
     }
     
-    private func exportData() {
-        guard let data = todoStore.exportData() else { return }
+    private func copyDataToClipboard() {
+        guard let data = todoStore.exportData(),
+              let jsonString = String(data: data, encoding: .utf8) else { return }
         
-        let savePanel = NSSavePanel()
-        savePanel.title = "Export Todo Data"
-        savePanel.nameFieldStringValue = "todos.json"
-        savePanel.allowedContentTypes = [.json]
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(jsonString, forType: .string)
         
-        if savePanel.runModal() == .OK {
-            guard let url = savePanel.url else { return }
-            
-            do {
-                try data.write(to: url)
-                showingExportAlert = true
-            } catch {
-                print("Failed to export data: \(error)")
-            }
-        }
+        showingExportConfirmation = true
     }
     
-    private func importData() {
-        let openPanel = NSOpenPanel()
-        openPanel.title = "Import Todo Data"
-        openPanel.allowedContentTypes = [.json]
-        openPanel.allowsMultipleSelection = false
-        
-        if openPanel.runModal() == .OK {
-            guard let url = openPanel.url else { return }
-            
-            do {
-                let data = try Data(contentsOf: url)
-                importSuccessful = todoStore.importData(from: data)
-                showingImportAlert = true
-            } catch {
-                importSuccessful = false
-                showingImportAlert = true
-                print("Failed to import data: \(error)")
-            }
+    private func pasteDataFromClipboard() {
+        let pasteboard = NSPasteboard.general
+        guard let clipboardString = pasteboard.string(forType: .string),
+              let data = clipboardString.data(using: .utf8) else {
+            importSuccessful = false
+            showingImportAlert = true
+            return
         }
+        
+        importSuccessful = todoStore.importData(from: data)
+        showingImportAlert = true
     }
 }
 

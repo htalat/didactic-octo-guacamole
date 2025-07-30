@@ -36,7 +36,7 @@ struct ContentView: View {
         .alert("Import Result", isPresented: $showingImportAlert) {
             Button("OK") { }
         } message: {
-            Text(importSuccessful ? "Your todo data has been imported successfully." : "Failed to import data. Please check the file format.")
+            Text(importSuccessful ? "Your todo data has been imported successfully." : "Failed to import data. Please ensure the clipboard contains valid JSON data exported from this app.")
         }
     }
     

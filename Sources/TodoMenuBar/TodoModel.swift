@@ -5,6 +5,7 @@ import Observation
 class TodoStore {
     var todos: [TodoItem] = []
     var currentlyDoing: TodoItem?
+    var sortOption: TodoSortOption = .createdDateNewest
     private let storage: TodoStorage
     
     init(storage: TodoStorage = UserDefaultsStorage()) {
@@ -20,8 +21,16 @@ class TodoStore {
     
     func updateTodo(_ todo: TodoItem, status: TodoStatus) {
         if let index = todos.firstIndex(where: { $0.id == todo.id }) {
+            let previousStatus = todos[index].status
             todos[index].status = status
             todos[index].updatedAt = Date()
+            
+            if status == .completed {
+                todos[index].completedAt = Date()
+            } else if previousStatus == .completed && status != .completed {
+                todos[index].completedAt = nil
+            }
+            
             saveTodos()
         }
     }
@@ -75,24 +84,48 @@ class TodoStore {
     }
     
     var inProgressTodos: [TodoItem] {
-        todos.filter { $0.status == .inProgress }
+        sortTodos(todos.filter { $0.status == .inProgress })
     }
     
     var completedTodos: [TodoItem] {
-        todos.filter { $0.status == .completed }
+        sortTodos(todos.filter { $0.status == .completed })
     }
     
     var archivedTodos: [TodoItem] {
-        todos.filter { $0.status == .archived }
+        sortTodos(todos.filter { $0.status == .archived })
+    }
+    
+    var sortedTodos: [TodoItem] {
+        sortTodos(todos)
+    }
+    
+    func sortTodos(_ todosToSort: [TodoItem]) -> [TodoItem] {
+        switch sortOption {
+        case .createdDateNewest:
+            return todosToSort.sorted { $0.createdAt > $1.createdAt }
+        case .createdDateOldest:
+            return todosToSort.sorted { $0.createdAt < $1.createdAt }
+        case .title:
+            return todosToSort.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        case .category:
+            return todosToSort.sorted { $0.category.localizedCaseInsensitiveCompare($1.category) == .orderedAscending }
+        case .status:
+            return todosToSort.sorted { $0.status.rawValue.localizedCaseInsensitiveCompare($1.status.rawValue) == .orderedAscending }
+        }
+    }
+    
+    func setSortOption(_ option: TodoSortOption) {
+        sortOption = option
     }
     
     func searchTodos(query: String) -> [TodoItem] {
-        guard !query.isEmpty else { return todos }
-        return todos.filter { 
+        guard !query.isEmpty else { return sortedTodos }
+        let filtered = todos.filter { 
             $0.title.localizedCaseInsensitiveContains(query) ||
             $0.description.localizedCaseInsensitiveContains(query) ||
             $0.category.localizedCaseInsensitiveContains(query)
         }
+        return sortTodos(filtered)
     }
     
     var categories: [String] {
@@ -100,7 +133,7 @@ class TodoStore {
     }
     
     func todos(inCategory category: String) -> [TodoItem] {
-        return todos.filter { $0.category == category }
+        return sortTodos(todos.filter { $0.category == category })
     }
     
     private func saveTodos() {
@@ -182,6 +215,7 @@ struct TodoItem: Identifiable, Codable, Equatable {
     var status: TodoStatus
     let createdAt: Date
     var updatedAt: Date
+    var completedAt: Date?
     
     init(title: String, description: String = "", category: String = "General") {
         self.id = UUID()
@@ -191,6 +225,7 @@ struct TodoItem: Identifiable, Codable, Equatable {
         self.status = .inProgress
         self.createdAt = Date()
         self.updatedAt = Date()
+        self.completedAt = nil
     }
 }
 
@@ -204,6 +239,24 @@ enum TodoStatus: String, CaseIterable, Codable {
         case .inProgress: return "In Progress"
         case .completed: return "Completed"
         case .archived: return "Archived"
+        }
+    }
+}
+
+enum TodoSortOption: String, CaseIterable, Codable {
+    case createdDateNewest = "created-newest"
+    case createdDateOldest = "created-oldest"
+    case title = "title"
+    case category = "category"
+    case status = "status"
+    
+    var displayName: String {
+        switch self {
+        case .createdDateNewest: return "Newest First"
+        case .createdDateOldest: return "Oldest First"
+        case .title: return "Title"
+        case .category: return "Category"
+        case .status: return "Status"
         }
     }
 }

@@ -1,4 +1,5 @@
 import Testing
+import Foundation
 @testable import TodoMenuBar
 
 @Test("TodoStore can add and manage todos")
@@ -131,4 +132,66 @@ func testCategoriesUniqueAndSorted() {
     let categories = store.categories
     #expect(categories == ["General", "Home", "Personal", "Work"])
     #expect(categories.count == 4)
+}
+
+@Test("TodoStore sets completion timestamp when todo is completed")
+func testCompletionTimestamp() {
+    let store = TodoStore(storage: MockStorage())
+    
+    store.addTodo(title: "Test todo")
+    let todo = store.todos.first!
+    
+    #expect(todo.completedAt == nil)
+    
+    store.updateTodo(todo, status: .completed)
+    let completedTodo = store.todos.first!
+    
+    #expect(completedTodo.completedAt != nil)
+    #expect(completedTodo.status == .completed)
+    
+    store.updateTodo(completedTodo, status: .inProgress)
+    let incompleteTodo = store.todos.first!
+    
+    #expect(incompleteTodo.completedAt == nil)
+    #expect(incompleteTodo.status == .inProgress)
+}
+
+@Test("TodoStore can sort todos by creation date")
+func testTodoSortingByCreationDate() {
+    let store = TodoStore(storage: MockStorage())
+    
+    store.addTodo(title: "First Todo")
+    Thread.sleep(forTimeInterval: 0.001) // Small delay to ensure different timestamps
+    store.addTodo(title: "Second Todo")
+    Thread.sleep(forTimeInterval: 0.001)
+    store.addTodo(title: "Third Todo")
+    
+    // Test newest first (default)
+    store.setSortOption(.createdDateNewest)
+    let newestFirst = store.sortedTodos
+    #expect(newestFirst[0].title == "Third Todo")
+    #expect(newestFirst[1].title == "Second Todo")
+    #expect(newestFirst[2].title == "First Todo")
+    
+    // Test oldest first
+    store.setSortOption(.createdDateOldest)
+    let oldestFirst = store.sortedTodos
+    #expect(oldestFirst[0].title == "First Todo")
+    #expect(oldestFirst[1].title == "Second Todo")
+    #expect(oldestFirst[2].title == "Third Todo")
+}
+
+@Test("TodoStore can sort todos by title")
+func testTodoSortingByTitle() {
+    let store = TodoStore(storage: MockStorage())
+    
+    store.addTodo(title: "Charlie")
+    store.addTodo(title: "Alpha")
+    store.addTodo(title: "Beta")
+    
+    store.setSortOption(.title)
+    let sortedByTitle = store.sortedTodos
+    #expect(sortedByTitle[0].title == "Alpha")
+    #expect(sortedByTitle[1].title == "Beta")
+    #expect(sortedByTitle[2].title == "Charlie")
 }

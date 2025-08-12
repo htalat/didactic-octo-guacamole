@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-private let appVersion = "1.2.0"
+private let appVersion = "1.3.0"
 
 struct ContentView: View {
     @State private var todoStore = TodoStore()
@@ -22,6 +22,7 @@ struct ContentView: View {
             currentlyDoingSection
             tabSelector
             categoryFilter
+            sortSelector
             searchBar
             todoList
             addTodoSection
@@ -153,6 +154,43 @@ struct ContentView: View {
         }
         .background(Color(.controlBackgroundColor))
         .cornerRadius(8)
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+    
+    private var sortSelector: some View {
+        HStack {
+            Text("Sort by:")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            Spacer()
+            
+            Menu {
+                ForEach(TodoSortOption.allCases, id: \.self) { option in
+                    Button(action: {
+                        todoStore.setSortOption(option)
+                    }) {
+                        HStack {
+                            Text(option.displayName)
+                            if todoStore.sortOption == option {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(todoStore.sortOption.displayName)
+                        .font(.caption)
+                    Image(systemName: "chevron.down")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(.primary)
+        }
         .padding(.horizontal)
         .padding(.top, 8)
     }
@@ -344,7 +382,8 @@ struct ContentView: View {
             }
         }
         
-        return statusTodos
+        // Apply sorting
+        return todoStore.sortTodos(statusTodos)
     }
     
     private func addTodo() {

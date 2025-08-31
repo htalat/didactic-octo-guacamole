@@ -8,24 +8,37 @@ let package = Package(
     ],
     products: [
         .executable(
-            name: "TodoMenuBar",
-            targets: ["TodoMenuBar"])
+            name: "TodoCLI",
+            targets: ["TodoCLI"]),
+        .executable(
+            name: "TodoApp",
+            targets: ["TodoApp"])
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.2.0"),
         .package(url: "https://github.com/stephencelis/SQLite.swift", from: "0.15.3")
     ],
     targets: [
-        .executableTarget(
-            name: "TodoMenuBar",
+        .target(
+            name: "Shared",
             dependencies: [
-                .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "SQLite", package: "SQLite.swift")
             ]
         ),
+        .executableTarget(
+            name: "TodoCLI",
+            dependencies: [
+                "Shared",
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
+            ]
+        ),
+        .executableTarget(
+            name: "TodoApp",
+            dependencies: ["Shared"]
+        ),
         .testTarget(
             name: "TodoMenuBarTests",
-            dependencies: ["TodoMenuBar"]
+            dependencies: ["Shared"]
         )
     ]
 )

@@ -1,9 +1,11 @@
 import SwiftUI
 import AppKit
 
-private let appVersion = "2.0.0"
+private let appVersion = "3.0.0"
 
-struct ContentView: View {
+public struct ContentView: View {
+    
+    public init() {}
     @State private var todoStore = TodoStore()
     @State private var selectedTab: TodoStatus = .inProgress
     @State private var searchText = ""
@@ -16,7 +18,7 @@ struct ContentView: View {
     @State private var showingExportConfirmation = false
     @State private var importSuccessful = false
     
-    var body: some View {
+    public var body: some View {
         VStack(spacing: 0) {
             headerView
             currentlyDoingSection
@@ -446,7 +448,7 @@ struct TodoRowView: View {
     @State private var editingCategory = ""
     @State private var showingDeleteAlert = false
     
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 12) {
             statusIndicator
             

@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import TodoMenuBar
+@testable import Shared
 
 @Test("TodoStore can add and manage todos")
 func testTodoStoreBasicOperations() {

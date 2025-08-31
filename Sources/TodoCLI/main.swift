@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Shared
 
 struct TodoMenuBarApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate

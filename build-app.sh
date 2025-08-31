@@ -43,9 +43,19 @@ EOF
 # Make executable executable
 chmod +x "$BUNDLE_DIR/MacOS/Todo"
 
-echo "App bundle created: $APP_NAME"
+# Code sign the app bundle
+if command -v codesign >/dev/null 2>&1; then
+    echo "Code signing the app..."
+    codesign --force --deep --sign - "$APP_NAME"
+    if [ $? -eq 0 ]; then
+        echo "✅ App successfully signed"
+    else
+        echo "⚠️  Code signing failed, app will need manual approval"
+    fi
+else
+    echo "⚠️  codesign not found, app will need manual approval"
+fi
+
 echo ""
-echo "To run the app:"
-echo "1. Right-click Todo.app → Open (first time only)"
-echo "2. Or run: xattr -dr com.apple.quarantine $APP_NAME && open $APP_NAME"
-echo "3. Or simply: open $APP_NAME"
+echo "App bundle created: $APP_NAME"
+echo "Run: open $APP_NAME"

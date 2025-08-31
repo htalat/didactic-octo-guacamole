@@ -40,5 +40,12 @@ cat > "$BUNDLE_DIR/Info.plist" << EOF
 </plist>
 EOF
 
+# Make executable executable
+chmod +x "$BUNDLE_DIR/MacOS/Todo"
+
 echo "App bundle created: $APP_NAME"
-echo "Run: open $APP_NAME"
+echo ""
+echo "To run the app:"
+echo "1. Right-click Todo.app → Open (first time only)"
+echo "2. Or run: xattr -dr com.apple.quarantine $APP_NAME && open $APP_NAME"
+echo "3. Or simply: open $APP_NAME"

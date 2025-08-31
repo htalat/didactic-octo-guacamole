@@ -56,6 +56,14 @@ else
     echo "⚠️  codesign not found, app will need manual approval"
 fi
 
+# Create DMG for distribution
+DMG_NAME="Todo-v3.0.1.dmg"
+echo "Creating DMG..."
+hdiutil create -volname "Todo" -srcfolder "$APP_NAME" -ov -format UDZO "$DMG_NAME"
+
 echo ""
-echo "App bundle created: $APP_NAME"
-echo "Run: open $APP_NAME"
+echo "✅ App bundle created: $APP_NAME"
+echo "✅ DMG created: $DMG_NAME"
+echo ""
+echo "For distribution: Share the DMG file"
+echo "For local use: open $APP_NAME"

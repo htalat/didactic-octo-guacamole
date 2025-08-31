@@ -40,5 +40,22 @@ cat > "$BUNDLE_DIR/Info.plist" << EOF
 </plist>
 EOF
 
+# Make executable executable
+chmod +x "$BUNDLE_DIR/MacOS/Todo"
+
+# Code sign the app bundle
+if command -v codesign >/dev/null 2>&1; then
+    echo "Code signing the app..."
+    codesign --force --deep --sign - "$APP_NAME"
+    if [ $? -eq 0 ]; then
+        echo "✅ App successfully signed"
+    else
+        echo "⚠️  Code signing failed, app will need manual approval"
+    fi
+else
+    echo "⚠️  codesign not found, app will need manual approval"
+fi
+
+echo ""
 echo "App bundle created: $APP_NAME"
 echo "Run: open $APP_NAME"

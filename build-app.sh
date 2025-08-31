@@ -21,7 +21,7 @@ cat > "$BUNDLE_DIR/Info.plist" << EOF
     <key>CFBundleExecutable</key>
     <string>Todo</string>
     <key>CFBundleIdentifier</key>
-    <string>com.todo.app</string>
+    <string>com.htalat.todo</string>
     <key>CFBundleName</key>
     <string>Todo</string>
     <key>CFBundleDisplayName</key>

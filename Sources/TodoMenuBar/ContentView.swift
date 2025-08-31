@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-private let appVersion = "1.3.0"
+private let appVersion = "2.0.0"
 
 struct ContentView: View {
     @State private var todoStore = TodoStore()

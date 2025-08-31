@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SQLite
 
 @Observable
 class TodoStore {
@@ -8,8 +9,17 @@ class TodoStore {
     var sortOption: TodoSortOption = .createdDateNewest
     private let storage: TodoStorage
     
-    init(storage: TodoStorage = UserDefaultsStorage()) {
-        self.storage = storage
+    init(storage: TodoStorage? = nil) {
+        if let storage = storage {
+            self.storage = storage
+        } else {
+            do {
+                self.storage = try SQLiteStorage()
+            } catch {
+                print("Failed to initialize SQLite storage, falling back to UserDefaults: \(error)")
+                self.storage = UserDefaultsStorage()
+            }
+        }
         loadTodos()
     }
     
@@ -190,6 +200,99 @@ class UserDefaultsStorage: TodoStorage {
     }
 }
 
+class SQLiteStorage: TodoStorage {
+    private let db: Connection
+    private let todos = Table("todos")
+    private let id = SQLite.Expression<String>("id")
+    private let title = SQLite.Expression<String>("title")
+    private let description = SQLite.Expression<String>("description")
+    private let category = SQLite.Expression<String>("category")
+    private let status = SQLite.Expression<String>("status")
+    private let createdAt = SQLite.Expression<Date>("created_at")
+    private let updatedAt = SQLite.Expression<Date>("updated_at")
+    private let completedAt = SQLite.Expression<Date?>("completed_at")
+    private let isCurrentlyDoing = SQLite.Expression<Bool>("is_currently_doing")
+    
+    init() throws {
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let dbPath = documentsPath.appendingPathComponent("todos.sqlite3").path
+        
+        db = try Connection(dbPath)
+        try createTable()
+    }
+    
+    private func createTable() throws {
+        try db.run(todos.create(ifNotExists: true) { t in
+            t.column(id, primaryKey: true)
+            t.column(title)
+            t.column(description)
+            t.column(category)
+            t.column(status)
+            t.column(createdAt)
+            t.column(updatedAt)
+            t.column(completedAt)
+            t.column(isCurrentlyDoing)
+        })
+    }
+    
+    func save(_ data: TodoData) {
+        do {
+            try db.transaction {
+                try db.run(todos.delete())
+                
+                for todo in data.todos {
+                    let isCurrentlyDoingThis = data.currentlyDoing?.id == todo.id
+                    try db.run(todos.insert(
+                        id <- todo.id.uuidString,
+                        title <- todo.title,
+                        description <- todo.description,
+                        category <- todo.category,
+                        status <- todo.status.rawValue,
+                        createdAt <- todo.createdAt,
+                        updatedAt <- todo.updatedAt,
+                        completedAt <- todo.completedAt,
+                        isCurrentlyDoing <- isCurrentlyDoingThis
+                    ))
+                }
+            }
+        } catch {
+            print("Error saving to SQLite: \(error)")
+        }
+    }
+    
+    func load() -> TodoData? {
+        do {
+            var loadedTodos: [TodoItem] = []
+            var currentlyDoingTodo: TodoItem?
+            
+            for row in try db.prepare(todos) {
+                let todoId = UUID(uuidString: row[id])!
+                let todo = TodoItem(
+                    id: todoId,
+                    title: row[title],
+                    description: row[description],
+                    category: row[category],
+                    status: TodoStatus(rawValue: row[status])!,
+                    createdAt: row[createdAt],
+                    updatedAt: row[updatedAt],
+                    completedAt: row[completedAt]
+                )
+                
+                loadedTodos.append(todo)
+                
+                if row[isCurrentlyDoing] {
+                    currentlyDoingTodo = todo
+                }
+            }
+            
+            return TodoData(todos: loadedTodos, currentlyDoing: currentlyDoingTodo)
+        } catch {
+            print("Error loading from SQLite: \(error)")
+            return nil
+        }
+    }
+}
+
 class MockStorage: TodoStorage {
     private var data: TodoData?
     
@@ -226,6 +329,17 @@ struct TodoItem: Identifiable, Codable, Equatable {
         self.createdAt = Date()
         self.updatedAt = Date()
         self.completedAt = nil
+    }
+    
+    init(id: UUID, title: String, description: String, category: String, status: TodoStatus, createdAt: Date, updatedAt: Date, completedAt: Date?) {
+        self.id = id
+        self.title = title
+        self.description = description
+        self.category = category
+        self.status = status
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.completedAt = completedAt
     }
 }
 

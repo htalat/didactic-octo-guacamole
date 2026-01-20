@@ -214,8 +214,14 @@ class SQLiteStorage: TodoStorage {
     private let isCurrentlyDoing = SQLite.Expression<Bool>("is_currently_doing")
     
     init() throws {
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let dbPath = documentsPath.appendingPathComponent("todos.sqlite3").path
+        // Use Application Support (no permission prompt) instead of Documents
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let appFolder = appSupport.appendingPathComponent("com.htalat.todo")
+        
+        // Create folder if it doesn't exist
+        try FileManager.default.createDirectory(at: appFolder, withIntermediateDirectories: true)
+        
+        let dbPath = appFolder.appendingPathComponent("todos.sqlite3").path
         
         db = try Connection(dbPath)
         try createTable()

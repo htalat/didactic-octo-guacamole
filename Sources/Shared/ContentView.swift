@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-private let appVersion = "3.0.0"
+private let appVersion = "3.1.1"
 
 public struct ContentView: View {
     

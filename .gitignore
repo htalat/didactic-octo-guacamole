@@ -7,3 +7,9 @@ swift-*.mdc
 *.xcodeproj/
 *.xcworkspace/
 .DS_Store
+
+# Build artifacts
+*.dmg
+*.zip
+entitlements.plist
+Todo.app/

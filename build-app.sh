@@ -1,11 +1,20 @@
 #!/bin/bash
+set -e
+
+VERSION="3.1.0"
+APP_NAME="Todo.app"
+DMG_NAME="Todo-v${VERSION}.dmg"
+BUNDLE_DIR="$APP_NAME/Contents"
+SIGNING_IDENTITY="Developer ID Application: Hassan Talat (5SY7TU5TAQ)"
+NOTARY_PROFILE="notarytool-profile"
+
+echo "🔨 Building Todo v${VERSION}..."
 
 # Build the app executable
 swift build -c release --product TodoApp
 
 # Create app bundle structure
-APP_NAME="Todo.app"
-BUNDLE_DIR="$APP_NAME/Contents"
+rm -rf "$APP_NAME"
 mkdir -p "$BUNDLE_DIR/MacOS"
 mkdir -p "$BUNDLE_DIR/Resources"
 
@@ -27,9 +36,9 @@ cat > "$BUNDLE_DIR/Info.plist" << EOF
     <key>CFBundleDisplayName</key>
     <string>Todo</string>
     <key>CFBundleVersion</key>
-    <string>3.0.0</string>
+    <string>${VERSION}</string>
     <key>CFBundleShortVersionString</key>
-    <string>3.0.0</string>
+    <string>${VERSION}</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>LSMinimumSystemVersion</key>
@@ -40,30 +49,57 @@ cat > "$BUNDLE_DIR/Info.plist" << EOF
 </plist>
 EOF
 
+# Create entitlements file for hardened runtime
+cat > "entitlements.plist" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.app-sandbox</key>
+    <false/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <false/>
+</dict>
+</plist>
+EOF
+
 # Make executable executable
 chmod +x "$BUNDLE_DIR/MacOS/Todo"
 
-# Code sign the app bundle
-if command -v codesign >/dev/null 2>&1; then
-    echo "Code signing the app..."
-    codesign --force --deep --sign - "$APP_NAME"
-    if [ $? -eq 0 ]; then
-        echo "✅ App successfully signed"
-    else
-        echo "⚠️  Code signing failed, app will need manual approval"
-    fi
-else
-    echo "⚠️  codesign not found, app will need manual approval"
-fi
+# Code sign with hardened runtime
+echo "🔐 Signing with Developer ID..."
+codesign --force --options runtime --entitlements entitlements.plist --sign "$SIGNING_IDENTITY" "$APP_NAME"
+echo "✅ Signed"
 
-# Create DMG for distribution
-DMG_NAME="Todo-v3.0.1.dmg"
-echo "Creating DMG..."
+# Verify signature
+echo "🔍 Verifying signature..."
+codesign --verify --verbose "$APP_NAME"
+spctl --assess --type exec --verbose "$APP_NAME" || echo "⚠️  Gatekeeper check will pass after notarization"
+
+# Create DMG
+echo "📦 Creating DMG..."
+rm -f "$DMG_NAME"
 hdiutil create -volname "Todo" -srcfolder "$APP_NAME" -ov -format UDZO "$DMG_NAME"
 
+# Sign the DMG too
+codesign --force --sign "$SIGNING_IDENTITY" "$DMG_NAME"
+
+# Notarize
+echo "🚀 Submitting for notarization (this may take a few minutes)..."
+xcrun notarytool submit "$DMG_NAME" --keychain-profile "$NOTARY_PROFILE" --wait
+
+# Staple the ticket
+echo "📎 Stapling notarization ticket..."
+xcrun stapler staple "$DMG_NAME"
+
+# Final verification
+echo "🔍 Final Gatekeeper check..."
+spctl --assess --type open --context context:primary-signature --verbose "$DMG_NAME"
+
+# Cleanup
+rm -f entitlements.plist
+
 echo ""
-echo "✅ App bundle created: $APP_NAME"
-echo "✅ DMG created: $DMG_NAME"
+echo "✅ Done! $DMG_NAME is ready for distribution"
 echo ""
-echo "For distribution: Share the DMG file"
-echo "For local use: open $APP_NAME"
+echo "Users can now download and open it without Gatekeeper warnings 🎉"

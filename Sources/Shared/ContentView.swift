@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-private let appVersion = "3.1.1"
+private let appVersion = "3.1.2"
 
 public struct ContentView: View {
     
@@ -446,9 +446,47 @@ struct TodoRowView: View {
     @State private var editingTitle = ""
     @State private var editingDescription = ""
     @State private var editingCategory = ""
-    @State private var showingDeleteAlert = false
+    @State private var showingDeleteConfirmation = false
     
     public var body: some View {
+        VStack(spacing: 0) {
+            if showingDeleteConfirmation {
+                // Inline delete confirmation (avoids system alert dismissing the popup)
+                HStack {
+                    Text("Delete '\(todo.title)'?")
+                        .font(.caption)
+                        .lineLimit(1)
+                    
+                    Spacer()
+                    
+                    Button("Cancel") {
+                        showingDeleteConfirmation = false
+                    }
+                    .buttonStyle(.plain)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    
+                    Button("Delete") {
+                        onDelete()
+                    }
+                    .buttonStyle(.plain)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.red.opacity(0.1))
+                .cornerRadius(8)
+            } else {
+                rowContent
+            }
+        }
+        .contextMenu {
+            contextMenuItems
+        }
+    }
+    
+    private var rowContent: some View {
         HStack(spacing: 12) {
             statusIndicator
             
@@ -533,17 +571,6 @@ struct TodoRowView: View {
         .padding(.vertical, 8)
         .background(isCurrentlyDoing ? Color.green.opacity(0.1) : Color(.controlBackgroundColor))
         .cornerRadius(8)
-        .contextMenu {
-            contextMenuItems
-        }
-        .alert("Delete Todo", isPresented: $showingDeleteAlert) {
-            Button("Delete", role: .destructive) {
-                onDelete()
-            }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("Are you sure you want to delete '\(todo.title)'? This action cannot be undone.")
-        }
     }
     
     private var statusIndicator: some View {
@@ -591,7 +618,7 @@ struct TodoRowView: View {
                 }
                 .buttonStyle(.plain)
                 
-                Button(action: { showingDeleteAlert = true }) {
+                Button(action: { showingDeleteConfirmation = true }) {
                     Image(systemName: "trash.circle")
                         .foregroundColor(.red)
                 }
@@ -635,7 +662,7 @@ struct TodoRowView: View {
             Divider()
             
             Button("Delete", role: .destructive) {
-                showingDeleteAlert = true
+                showingDeleteConfirmation = true
             }
         }
     }

@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-private let appVersion = "3.1.2"
+private let appVersion = "3.2.0"
 
 public struct ContentView: View {
     
@@ -14,6 +14,9 @@ public struct ContentView: View {
     @State private var newTodoCategory = "general"
     @State private var showingAddTodo = false
     @State private var selectedCategory: String? = nil
+    @State private var selectedSourceID: String? = nil
+    @State private var newTodoSourceID = LocalTodoSource.sourceID
+    @State private var showingSources = false
     @State private var showingImportAlert = false
     @State private var showingExportConfirmation = false
     @State private var importSuccessful = false
@@ -21,15 +24,26 @@ public struct ContentView: View {
     public var body: some View {
         VStack(spacing: 0) {
             headerView
-            currentlyDoingSection
-            tabSelector
-            categoryFilter
-            sortSelector
-            searchBar
-            todoList
-            addTodoSection
+            if showingSources {
+                SourcesSettingsView(store: todoStore) {
+                    showingSources = false
+                }
+            } else {
+                sourceErrorBanner
+                currentlyDoingSection
+                tabSelector
+                sourceFilter
+                categoryFilter
+                sortSelector
+                searchBar
+                todoList
+                addTodoSection
+            }
         }
         .frame(width: 400, height: 600)
+        .task {
+            await todoStore.refresh()
+        }
         .background(Color(.windowBackgroundColor))
         .alert("Copied to Clipboard", isPresented: $showingExportConfirmation) {
             Button("OK") { }
@@ -57,7 +71,28 @@ public struct ContentView: View {
             
             Spacer()
             
+            Button {
+                Task { await todoStore.refresh() }
+            } label: {
+                if todoStore.isRefreshing {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: "arrow.clockwise")
+                        .foregroundColor(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(todoStore.isRefreshing)
+            .help("Refresh all sources")
+            
             Menu {
+                Button("Sources…") {
+                    showingSources = true
+                }
+                
+                Divider()
+                
                 Button("Copy Data") {
                     copyDataToClipboard()
                 }
@@ -107,12 +142,14 @@ public struct ContentView: View {
                         .font(.caption)
                         .foregroundColor(.green)
                         
-                        Button("Archive") {
-                            todoStore.archiveCurrentlyDoing()
+                        if todoStore.capabilities(for: current).contains(.archive) {
+                            Button("Archive") {
+                                todoStore.archiveCurrentlyDoing()
+                            }
+                            .buttonStyle(.plain)
+                            .font(.caption)
+                            .foregroundColor(.orange)
                         }
-                        .buttonStyle(.plain)
-                        .font(.caption)
-                        .foregroundColor(.orange)
                         
                         Button("Clear") {
                             todoStore.setCurrentlyDoing(nil)
@@ -220,6 +257,8 @@ public struct ContentView: View {
                         todo: todo,
                         isCurrentlyDoing: todoStore.currentlyDoing?.id == todo.id,
                         categories: todoStore.categories,
+                        capabilities: todoStore.capabilities(for: todo),
+                        sourceName: hasMultipleSources ? todoStore.source(for: todo)?.displayName : nil,
                         onStatusChange: { status in
                             todoStore.updateTodo(todo, status: status)
                         },
@@ -237,6 +276,64 @@ public struct ContentView: View {
             }
             .padding()
         }
+    }
+    
+    private var hasMultipleSources: Bool {
+        todoStore.sources.count > 1
+    }
+    
+    private var sourceErrorBanner: some View {
+        let errors = todoStore.sources.compactMap { source in
+            todoStore.sourceErrors[source.id].map { "\(source.displayName): \($0)" }
+        }
+        return Group {
+            if !errors.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(errors, id: \.self) { message in
+                        Label(message, systemImage: "exclamationmark.triangle")
+                            .font(.caption)
+                            .lineLimit(2)
+                    }
+                }
+                .foregroundColor(.orange)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(8)
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(8)
+                .padding(.horizontal)
+                .padding(.top, 8)
+            }
+        }
+    }
+    
+    private var sourceFilter: some View {
+        Group {
+            if hasMultipleSources {
+                HStack(spacing: 8) {
+                    filterChip("All sources", isSelected: selectedSourceID == nil) {
+                        selectedSourceID = nil
+                    }
+                    ForEach(todoStore.sources, id: \.id) { source in
+                        filterChip(source.displayName, isSelected: selectedSourceID == source.id) {
+                            selectedSourceID = source.id
+                        }
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
+            }
+        }
+    }
+    
+    private func filterChip(_ title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(title, action: action)
+            .buttonStyle(.plain)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(isSelected ? Color(.selectedControlColor) : Color(.controlBackgroundColor))
+            .cornerRadius(16)
+            .font(.caption)
     }
     
     private var categoryFilter: some View {
@@ -277,6 +374,16 @@ public struct ContentView: View {
         VStack(spacing: 8) {
             if showingAddTodo {
                 VStack(spacing: 8) {
+                    if todoStore.creatableSources.count > 1 {
+                        Picker("Add to", selection: $newTodoSourceID) {
+                            ForEach(todoStore.creatableSources, id: \.id) { source in
+                                Text(source.displayName).tag(source.id)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .font(.caption)
+                    }
+                    
                     TextField("Todo title", text: $newTodoTitle)
                         .textFieldStyle(.roundedBorder)
                     
@@ -349,6 +456,11 @@ public struct ContentView: View {
                 .padding(.horizontal)
             } else {
                 Button("+ Add Todo") {
+                    if let selectedSourceID, todoStore.creatableSources.contains(where: { $0.id == selectedSourceID }) {
+                        newTodoSourceID = selectedSourceID
+                    } else if !todoStore.creatableSources.contains(where: { $0.id == newTodoSourceID }) {
+                        newTodoSourceID = LocalTodoSource.sourceID
+                    }
                     showingAddTodo = true
                 }
                 .frame(maxWidth: .infinity)
@@ -369,6 +481,11 @@ public struct ContentView: View {
     
     private var filteredTodos: [TodoItem] {
         var statusTodos = todosForStatus(selectedTab)
+        
+        // Apply source filter
+        if let sourceID = selectedSourceID {
+            statusTodos = statusTodos.filter { $0.sourceID == sourceID }
+        }
         
         // Apply category filter
         if let category = selectedCategory {
@@ -395,7 +512,8 @@ public struct ContentView: View {
         todoStore.addTodo(
             title: title,
             description: newTodoDescription.trimmingCharacters(in: .whitespacesAndNewlines),
-            category: newTodoCategory.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            category: newTodoCategory.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+            sourceID: newTodoSourceID
         )
         
         showingAddTodo = false
@@ -437,6 +555,9 @@ struct TodoRowView: View {
     let todo: TodoItem
     let isCurrentlyDoing: Bool
     let categories: [String]
+    let capabilities: SourceCapabilities
+    /// Shown as a badge when the app has more than one source.
+    let sourceName: String?
     let onStatusChange: (TodoStatus) -> Void
     let onSetCurrentlyDoing: () -> Void
     let onEdit: (String, String, String) -> Void
@@ -534,7 +655,9 @@ struct TodoRowView: View {
                             .fontWeight(.medium)
                             .strikethrough(todo.status == .completed)
                             .onTapGesture(count: 2) {
-                                startEditing()
+                                if capabilities.contains(.edit) {
+                                    startEditing()
+                                }
                             }
                         
                         if !todo.description.isEmpty {
@@ -545,6 +668,16 @@ struct TodoRowView: View {
                         }
                         
                         HStack {
+                            if let sourceName {
+                                Text(sourceName)
+                                    .font(.caption2)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.accentColor.opacity(0.15))
+                                    .cornerRadius(4)
+                                    .foregroundColor(.accentColor)
+                            }
+                            
                             Text(todo.category)
                                 .font(.caption2)
                                 .padding(.horizontal, 6)
@@ -612,20 +745,24 @@ struct TodoRowView: View {
                     .buttonStyle(.plain)
                 }
                 
-                Button(action: startEditing) {
-                    Image(systemName: "pencil.circle")
-                        .foregroundColor(.blue)
+                if capabilities.contains(.edit) {
+                    Button(action: startEditing) {
+                        Image(systemName: "pencil.circle")
+                            .foregroundColor(.blue)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
                 
-                Button(action: { showingDeleteConfirmation = true }) {
-                    Image(systemName: "trash.circle")
-                        .foregroundColor(.red)
+                if capabilities.contains(.delete) {
+                    Button(action: { showingDeleteConfirmation = true }) {
+                        Image(systemName: "trash.circle")
+                            .foregroundColor(.red)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
                 
                 Menu {
-                    ForEach(TodoStatus.allCases, id: \.self) { status in
+                    ForEach(availableStatuses, id: \.self) { status in
                         Button(status.displayName) {
                             onStatusChange(status)
                         }
@@ -647,24 +784,32 @@ struct TodoRowView: View {
                 }
             }
             
-            Button("Edit") {
-                startEditing()
+            if capabilities.contains(.edit) {
+                Button("Edit") {
+                    startEditing()
+                }
             }
             
             Menu("Move to") {
-                ForEach(TodoStatus.allCases, id: \.self) { status in
+                ForEach(availableStatuses, id: \.self) { status in
                     Button(status.displayName) {
                         onStatusChange(status)
                     }
                 }
             }
             
-            Divider()
-            
-            Button("Delete", role: .destructive) {
-                showingDeleteConfirmation = true
+            if capabilities.contains(.delete) {
+                Divider()
+                
+                Button("Delete", role: .destructive) {
+                    showingDeleteConfirmation = true
+                }
             }
         }
+    }
+    
+    private var availableStatuses: [TodoStatus] {
+        TodoStatus.allCases.filter { $0 != .archived || capabilities.contains(.archive) }
     }
     
     private func startEditing() {

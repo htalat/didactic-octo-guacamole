@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="3.1.1"
+VERSION="3.2.0"
 APP_NAME="Todo.app"
 DMG_NAME="Todo-v${VERSION}.dmg"
 BUNDLE_DIR="$APP_NAME/Contents"

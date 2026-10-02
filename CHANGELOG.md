@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Data sources: the app now shows todos from more than one source. Each source conforms to `TodoSource`
 - Timmu source: shows the Timmu inbox (tasks with no time). You can add, edit, complete, and delete Timmu tasks. The Timmu priority shows as the category
-- "Sources…" panel to connect to a Timmu server (the sign-in token is kept in the Keychain)
+- "Sources…" panel to connect to a Timmu server with an API key (production, `https://api.htalat.com/timmu`, the default) or a password (local backend). The key or token is kept in the Keychain
 - Source filter, source badges on todos, and a source picker when you add a todo
 - Refresh button and an error banner for a source that fails
 

@@ -125,14 +125,14 @@ struct LoginResponse: Decodable {
 }
 
 public enum TimmuError: LocalizedError {
-    case unauthorized
+    case unauthorized(message: String?)
     case server(status: Int, message: String?)
     case invalidResponse
 
     public var errorDescription: String? {
         switch self {
-        case .unauthorized:
-            return "Timmu rejected the credentials. Connect again in Sources."
+        case .unauthorized(let message):
+            return "Timmu rejected the credentials\(message.map { " (\($0))" } ?? ""). Connect again in Sources."
         case .server(let status, let message):
             return message ?? "Timmu returned HTTP \(status)."
         case .invalidResponse:
@@ -173,6 +173,23 @@ struct TimmuClient: Sendable {
     }
 
     private func perform(_ method: String, _ path: String, body: (some Encodable)?) async throws -> Data {
+        let request = try makeRequest(method, path, body: body)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw TimmuError.invalidResponse }
+        let message = { (try? JSONDecoder().decode(ErrorBody.self, from: data))?.error }
+        switch http.statusCode {
+        case 200..<300:
+            return data
+        case 401:
+            throw TimmuError.unauthorized(message: message())
+        default:
+            throw TimmuError.server(status: http.statusCode, message: message())
+        }
+    }
+
+    /// `path` is relative to `baseURL`, so a base URL with a path prefix
+    /// (such as `https://api.htalat.com/timmu`) keeps the prefix.
+    func makeRequest(_ method: String, _ path: String, body: (some Encodable)?) throws -> URLRequest {
         var request = URLRequest(url: baseURL.appending(path: path))
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -184,17 +201,6 @@ struct TimmuClient: Sendable {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONEncoder().encode(body)
         }
-
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw TimmuError.invalidResponse }
-        switch http.statusCode {
-        case 200..<300:
-            return data
-        case 401:
-            throw TimmuError.unauthorized
-        default:
-            let message = (try? JSONDecoder().decode(ErrorBody.self, from: data))?.error
-            throw TimmuError.server(status: http.statusCode, message: message)
-        }
+        return request
     }
 }

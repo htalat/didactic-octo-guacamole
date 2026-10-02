@@ -2,11 +2,18 @@ import SwiftUI
 
 /// Shows the active sources and connects or disconnects Timmu.
 struct SourcesSettingsView: View {
+    enum AuthMethod: String, CaseIterable {
+        case apiKey = "API key"
+        case password = "Password"
+    }
+
     let store: TodoStore
     let onDone: () -> Void
 
     @State private var isTimmuConnected = TimmuSettings.isConnected
     @State private var serverURL = TimmuSettings.baseURL.absoluteString
+    @State private var authMethod = AuthMethod.apiKey
+    @State private var apiKey = ""
     @State private var email = ""
     @State private var password = ""
     @State private var isConnecting = false
@@ -75,12 +82,31 @@ struct SourcesSettingsView: View {
         VStack(alignment: .leading, spacing: 8) {
             TextField("Server URL", text: $serverURL)
                 .textFieldStyle(.roundedBorder)
-            TextField("Email", text: $email)
-                .textFieldStyle(.roundedBorder)
-                .textContentType(.username)
-            SecureField("Password", text: $password)
-                .textFieldStyle(.roundedBorder)
-                .onSubmit(connect)
+
+            Picker("Sign in with", selection: $authMethod) {
+                ForEach(AuthMethod.allCases, id: \.self) { method in
+                    Text(method.rawValue).tag(method)
+                }
+            }
+            .pickerStyle(.segmented)
+            .font(.caption)
+
+            switch authMethod {
+            case .apiKey:
+                SecureField("htk_timmu_…", text: $apiKey)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit(connect)
+                Text("Use a key with the scopes timmu:read, timmu:write, and timmu:delete.")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            case .password:
+                TextField("Email", text: $email)
+                    .textFieldStyle(.roundedBorder)
+                    .textContentType(.username)
+                SecureField("Password", text: $password)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit(connect)
+            }
 
             if let errorMessage {
                 Text(errorMessage)
@@ -89,7 +115,7 @@ struct SourcesSettingsView: View {
             }
 
             HStack {
-                Text("The password is not stored. The app keeps a sign-in token in the Keychain.")
+                Text("The app keeps the key or sign-in token in the Keychain. It does not store the password.")
                     .font(.caption2)
                     .foregroundColor(.secondary)
                 Spacer()
@@ -104,7 +130,15 @@ struct SourcesSettingsView: View {
     }
 
     private var canConnect: Bool {
-        !isConnecting && !email.isEmpty && !password.isEmpty && parsedURL != nil
+        guard !isConnecting, parsedURL != nil else { return false }
+        switch authMethod {
+        case .apiKey: return !trimmedAPIKey.isEmpty
+        case .password: return !email.isEmpty && !password.isEmpty
+        }
+    }
+
+    private var trimmedAPIKey: String {
+        apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var parsedURL: URL? {
@@ -122,7 +156,13 @@ struct SourcesSettingsView: View {
         Task {
             defer { isConnecting = false }
             do {
-                try await TimmuSettings.connect(baseURL: url, email: email, password: password)
+                switch authMethod {
+                case .apiKey:
+                    try await TimmuSettings.connect(baseURL: url, apiKey: trimmedAPIKey)
+                case .password:
+                    try await TimmuSettings.connect(baseURL: url, email: email, password: password)
+                }
+                apiKey = ""
                 password = ""
                 isTimmuConnected = true
                 await store.setSources(TodoSourceFactory.makeSources(reusing: store.sources))

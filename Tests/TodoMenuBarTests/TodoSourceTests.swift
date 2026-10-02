@@ -241,3 +241,17 @@ func decodesLegacyTodoItem() throws {
     #expect(todo.localID == "1E0D8F7A-0000-0000-0000-000000000000")
     #expect(todo.status == .completed)
 }
+
+@Test("A base URL with a path prefix keeps the prefix", arguments: [
+    ("https://api.htalat.com/timmu", "https://api.htalat.com/timmu/activities/inbox"),
+    ("https://api.htalat.com/timmu/", "https://api.htalat.com/timmu/activities/inbox"),
+    ("http://localhost:3000", "http://localhost:3000/activities/inbox"),
+])
+func requestURLKeepsPrefix(base: String, expected: String) throws {
+    let client = TimmuClient(baseURL: try #require(URL(string: base)), token: "htk_timmu_x", session: .shared)
+    let request = try client.makeRequest("GET", "activities/inbox", body: Optional<String>.none)
+
+    #expect(request.url?.absoluteString == expected)
+    #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer htk_timmu_x")
+    #expect(request.value(forHTTPHeaderField: "Content-Type") == nil)
+}

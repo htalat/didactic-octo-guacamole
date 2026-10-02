@@ -55,11 +55,23 @@ Todos come from one or more *sources*. `TodoStore` merges the todos of all sourc
 
 ### Timmu
 
-1. Start the Timmu backend (default `http://localhost:3000`).
-2. In the app, open the `…` menu and click **Sources…**.
-3. Type the server URL, email, and password, then click **Connect**.
+**Production (`https://api.htalat.com/timmu`, the default):**
 
-The app does not store the password. It keeps the sign-in token in the Keychain. Timmu priorities (`high`, `medium`, `low`) show as categories; set one of these categories to set the priority. Timmu has no archive, so the app hides "Archive" for Timmu todos.
+1. Make an API key for the `timmu` surface (see `docs/api-keys.md` in `htalat.com`):
+   ```bash
+   curl -s -X POST https://api.htalat.com/auth/request-otp
+   JWT=$(curl -s https://api.htalat.com/auth/verify-otp -H 'Content-Type: application/json' -d '{"code":"<code from the email>"}' | jq -r .token)
+   curl -s https://api.htalat.com/auth/keys -H "Authorization: Bearer $JWT" -H 'Content-Type: application/json' \
+     -d '{"name":"todo-menubar","surface":"timmu","scopes":["timmu:read","timmu:write","timmu:delete"]}'
+   ```
+2. In the app, open the `…` menu and click **Sources…**.
+3. Keep the server URL, select **API key**, paste the key, and click **Connect**.
+
+Keys expire after 90 days by default. When a key expires, the app shows an error; make a new key and connect again.
+
+**Local backend (`~/Developer/timmu`):** set the server URL to `http://localhost:3000`, select **Password**, and type the email and password.
+
+The app keeps the API key or sign-in token in the Keychain. It does not store the password. Timmu priorities (`high`, `medium`, `low`) show as categories; set one of these categories to set the priority. Timmu has no archive, so the app hides "Archive" for Timmu todos.
 
 ### Add a new source
 

@@ -26,7 +26,8 @@ public enum TodoSourceFactory {
 
 /// The Timmu server URL (in UserDefaults) and the account token (in the Keychain).
 public enum TimmuSettings {
-    public static let defaultBaseURL = URL(string: "http://localhost:3000")!
+    /// The production Timmu API. Its routes are under `/timmu`, and it accepts `htk_timmu_…` API keys.
+    public static let defaultBaseURL = URL(string: "https://api.htalat.com/timmu")!
 
     private static let baseURLKey = "timmu.baseURL"
     private static let keychainService = "com.htalat.todo.timmu"
@@ -50,6 +51,14 @@ public enum TimmuSettings {
         let token = try await TimmuTodoSource.logIn(baseURL: baseURL, email: email, password: password)
         UserDefaults.standard.set(baseURL.absoluteString, forKey: baseURLKey)
         try Keychain.save(token, service: keychainService, account: keychainAccount)
+    }
+
+    /// Checks the API key with one fetch, then keeps it. Use this for servers that sign in
+    /// with a one-time code (such as api.htalat.com) instead of a password.
+    public static func connect(baseURL: URL, apiKey: String) async throws {
+        _ = try await TimmuTodoSource(baseURL: baseURL, token: apiKey).fetchTodos()
+        UserDefaults.standard.set(baseURL.absoluteString, forKey: baseURLKey)
+        try Keychain.save(apiKey, service: keychainService, account: keychainAccount)
     }
 
     public static func disconnect() {

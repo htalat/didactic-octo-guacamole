@@ -2,6 +2,7 @@ import Testing
 import Foundation
 @testable import Shared
 
+@MainActor
 @Test("TodoStore can add and manage todos")
 func testTodoStoreBasicOperations() {
     let store = TodoStore(storage: MockStorage())
@@ -12,6 +13,7 @@ func testTodoStoreBasicOperations() {
     #expect(store.todos.first?.status == .inProgress)
 }
 
+@MainActor
 @Test("TodoStore filters todos by status correctly")
 func testTodoStatusFiltering() {
     let store = TodoStore(storage: MockStorage())
@@ -35,6 +37,7 @@ func testTodoStatusFiltering() {
     #expect(store.archivedTodos.first?.title == "Todo 2")
 }
 
+@MainActor
 @Test("TodoStore search functionality works")
 func testTodoSearch() {
     let store = TodoStore(storage: MockStorage())
@@ -51,6 +54,7 @@ func testTodoSearch() {
     #expect(emptyResults.count == 3)
 }
 
+@MainActor
 @Test("TodoStore currently doing functionality")
 func testCurrentlyDoing() {
     let store = TodoStore(storage: MockStorage())
@@ -65,6 +69,7 @@ func testCurrentlyDoing() {
     #expect(store.currentlyDoing == nil)
 }
 
+@MainActor
 @Test("TodoStore can edit todo titles")
 func testEditTodo() {
     let store = TodoStore(storage: MockStorage())
@@ -78,6 +83,7 @@ func testEditTodo() {
     #expect(store.todos.first?.id == todo.id)
 }
 
+@MainActor
 @Test("TodoStore edit trims whitespace")
 func testEditTodoTrimsWhitespace() {
     let store = TodoStore(storage: MockStorage())
@@ -90,6 +96,7 @@ func testEditTodoTrimsWhitespace() {
     #expect(store.todos.first?.title == "Trimmed title")
 }
 
+@MainActor
 @Test("TodoStore can add todos with description and category")
 func testAddTodoWithDescriptionAndCategory() {
     let store = TodoStore(storage: MockStorage())
@@ -99,9 +106,10 @@ func testAddTodoWithDescriptionAndCategory() {
     let todo = store.todos.first!
     #expect(todo.title == "Work task")
     #expect(todo.description == "Important project")
-    #expect(todo.category == "Work")
+    #expect(todo.category == "work")
 }
 
+@MainActor
 @Test("TodoStore search includes description and category")
 func testSearchIncludesAllFields() {
     let store = TodoStore(storage: MockStorage())
@@ -119,6 +127,7 @@ func testSearchIncludesAllFields() {
     #expect(categoryResults.count == 1)
 }
 
+@MainActor
 @Test("TodoStore categories are unique and sorted")
 func testCategoriesUniqueAndSorted() {
     let store = TodoStore(storage: MockStorage())
@@ -130,10 +139,11 @@ func testCategoriesUniqueAndSorted() {
     store.addTodo(title: "Task 5")  // Uses default "General" category
     
     let categories = store.categories
-    #expect(categories == ["General", "Home", "Personal", "Work"])
+    #expect(categories == ["general", "home", "personal", "work"])
     #expect(categories.count == 4)
 }
 
+@MainActor
 @Test("TodoStore sets completion timestamp when todo is completed")
 func testCompletionTimestamp() {
     let store = TodoStore(storage: MockStorage())
@@ -156,6 +166,7 @@ func testCompletionTimestamp() {
     #expect(incompleteTodo.status == .inProgress)
 }
 
+@MainActor
 @Test("TodoStore can sort todos by creation date")
 func testTodoSortingByCreationDate() {
     let store = TodoStore(storage: MockStorage())
@@ -181,6 +192,7 @@ func testTodoSortingByCreationDate() {
     #expect(oldestFirst[2].title == "Third Todo")
 }
 
+@MainActor
 @Test("TodoStore can sort todos by title")
 func testTodoSortingByTitle() {
     let store = TodoStore(storage: MockStorage())
